@@ -55,6 +55,34 @@
   - `pascal_triangle.py` —— Manim 动画演示帕斯卡三角的对称性
   - `induction_dominoes.py` —— 多米诺骨牌物理仿真
 
+**🖼️ 输出可视化**
+
+| 斐波那契 → 黄金螺线 → 向日葵 | 帕斯卡三角 → 谢尔宾斯基 | 归纳法 = 多米诺骨牌 |
+|:---:|:---:|:---:|
+| ![fibonacci](ch01_sequences/fibonacci_spiral.png) | ![pascal](ch01_sequences/pascal_triangle.png) | ![induction](ch01_sequences/induction_dominoes.png) |
+
+**🔑 关键代码片段**（`fibonacci_spiral.py`：Vogel 的向日葵种子排列，黄金角 ≈ 137.5°）
+
+```python
+# 黄金角的弧度值 —— 大自然给出的"最不可整除"角度
+golden_angle = math.pi * (3 - math.sqrt(5))
+k = torch.arange(1, 801, dtype=torch.float)
+sun_r     = torch.sqrt(k)              # 半径 ∝ √k：每颗种子占同样面积
+sun_theta = k * golden_angle           # 角度按黄金角累加
+sun_x = sun_r * torch.cos(sun_theta)
+sun_y = sun_r * torch.sin(sun_theta)
+```
+
+`pascal_triangle.py`：帕斯卡三角的递推 + mod 2 自动浮现谢尔宾斯基分形
+
+```python
+T = torch.zeros(N, N, dtype=torch.long); T[0, 0] = 1
+for i in range(1, N):
+    for j in range(i + 1):
+        T[i, j] = (T[i-1, j-1] if j > 0 else 0) + (T[i-1, j] if j < i else 0)
+sierpinski = (T % 2).float()           # 一行 mod 2，1654 → 20 世纪的分形
+```
+
 ### Chapter 2 · 从数列到微积分：两千年的接力赛
 - **核心思想**：当你**让差分的间隔无限缩小**，离散的数列就变成了连续的曲线，**导数**和**积分**就诞生了。但这个"无限缩小"的念头，是**七十多代人**前赴后继才搞清楚的。
 
@@ -124,6 +152,32 @@
   - `berkeley_ghost.py` —— "逝去量的幽灵" → $\varepsilon$-$\delta$ 极限可视化
   - `autograd_as_fluxion.py` —— 把 `loss.backward()` 翻译成牛顿语言
 
+**🖼️ 输出可视化**
+
+| 阿基米德 96 边形逼近 π | 牛顿椭圆轨道数值积分 | 牛顿流数 = PyTorch autograd |
+|:---:|:---:|:---:|
+| ![archimedes](ch02_calculus/archimedes_circle.png) | ![newton](ch02_calculus/newton_orbit.png) | ![autograd](ch02_calculus/autograd_as_fluxion.png) |
+
+**🔑 关键代码片段**（`autograd_as_fluxion.py` —— 整个项目的"题眼"：牛顿 1666 写下的 ẋ，就是今天的 `x.grad`）
+
+```python
+def f_of(x):
+    return torch.sin(x**2) * torch.exp(-x / 2)
+
+# 牛顿的"流数" —— 中心差分（他当年也是这么数值算的）
+h = 1e-4
+fluxion_newton = (f_of(x_grid + h) - f_of(x_grid - h)) / (2 * h)
+
+# PyTorch autograd —— 反向模式自动微分
+x = x_grid.clone().requires_grad_(True)
+y = f_of(x)
+y.sum().backward()                       # 莱布尼茨链式法则的自动化
+fluxion_autograd = x.grad
+
+# 1666 牛顿  ==  1684 莱布尼茨  ==  2017 PyTorch
+assert (fluxion_newton - fluxion_autograd).abs().max() < 1e-3
+```
+
 ### Chapter 3 · 高次方程的悲剧与代数的诞生
 - **历史人物**：花拉子米（820，"代数"一词的来源）、卡尔达诺（1545）、阿贝尔（1824，27 岁病逝）、伽罗瓦（1832，21 岁决斗死）
 - **核心思想**：二次方程很简单，三次四次还有公式，但**五次方程没有根式解** —— 这不是技术问题，而是**对称性的本质限制**。
@@ -136,6 +190,27 @@
   - `cardano_cubic.py` —— 三次方程的几何与代数解法
   - `quintic_roots_complex.py` —— 五次方程根在复平面的舞蹈
   - `galois_group_viz.py` —— $S_5$ 群的 Cayley 图
+
+**🖼️ 输出可视化**
+
+| 卡尔达诺三次方程 | 五次方程根的复平面 | 伽罗瓦 S₅ 群结构 |
+|:---:|:---:|:---:|
+| ![cardano](ch03_polynomials/cardano_cubic.png) | ![quintic](ch03_polynomials/quintic_roots_complex.png) | ![galois](ch03_polynomials/galois_group_viz.png) |
+
+**🔑 关键代码片段**（`quintic_roots_complex.py` —— 阿贝尔–鲁菲尼定理：五次方程没有"求根公式"，但根本身存在）
+
+```python
+# 400 个随机五次方程，全部用数值法求根 —— "存在 ≠ 可写成根式"
+M = 400
+coeffs = torch.randn(M, 5) * 1.5
+all_roots = []
+for c in coeffs:
+    poly = [1.0] + c.tolist()
+    all_roots.append(np.roots(poly))   # 数值上一定能找到 5 个根
+
+# 特殊情形 x⁵ = 1 —— 循环群 ℤ/5，是可解的
+roots_unity = np.roots([1, 0, 0, 0, 0, -1])   # 单位圆上 5 个等距点
+```
 
 ### Chapter 4 · 线性代数：从《九章算术》到矩阵宇宙
 - **核心思想**：当未知数从 2 个变成 100 个，"消元法"必须被**系统化** —— 矩阵不是高中老师说的"一堆数字"，而是**线性变换的语言**。但从"解方程组"到"矩阵作为代数对象"，人类走了 **2000 年**。
@@ -212,6 +287,27 @@
   - `heisenberg_matrix.py` —— 矩阵力学求解氢原子能级
   - `svd_image_compression.py` —— 用 SVD 压缩蒙娜丽莎
 
+**🖼️ 输出可视化**
+
+| 高斯消元法（《九章算术》遗产） | 矩阵 = 空间变换 |
+|:---:|:---:|
+| ![gauss](ch04_linear_algebra/gauss_elimination.png) | ![transform](ch04_linear_algebra/matrix_as_transform.png) |
+
+| SVD 图像压缩（k = 1, 5, 20, 50, 200, full） | 奇异值谱（自然图像的能量集中现象） |
+|:---:|:---:|
+| ![svd](ch04_linear_algebra/svd_image_compression.png) | ![spectrum](ch04_linear_algebra/svd_image_compression_spectrum.png) |
+
+**🔑 关键代码片段**（`svd_image_compression.py` —— Eckart-Young 定理（1936）：保留前 k 个奇异值就是 Frobenius 范数下最佳的低秩逼近，**JPEG / PCA / Transformer 注意力机制**共同的祖先）
+
+```python
+A = torch.from_numpy(img).float()                # 灰度图当矩阵
+U, S, Vh = torch.linalg.svd(A, full_matrices=False)
+
+for k in [1, 5, 20, 50, 200, len(S)]:
+    Ak = U[:, :k] @ torch.diag(S[:k]) @ Vh[:k]   # 秩-k 重建
+    # 存储 Ak 只需 k·(H + W + 1) 个数，而原图是 H·W
+```
+
 ### Chapter 5 · 工业革命与傅里叶：数学如何驱动机器
 - **历史人物**：傅里叶（1807，研究蒸汽机散热）、麦克斯韦（1865，电磁方程）、希尔伯特（1900，无穷维空间）
 - **核心思想**：任何复杂的周期信号，都可以分解成**正弦波的叠加** —— 这是 MP3、JPEG、Wi-Fi、CT 扫描的共同基础。
@@ -224,6 +320,27 @@
   - `fourier_square_wave.py` —— 方波的傅里叶级数逼近
   - `audio_spectrogram.py` —— 实时音频频谱可视化
 
+**🖼️ 输出可视化**
+
+| 1D 热传导方程（傅里叶 1807 的原问题） | 方波 = 奇次谐波之和（吉布斯现象） | 音频频谱图（FFT 给音乐"做体检"） |
+|:---:|:---:|:---:|
+| ![heat](ch05_fourier/heat_equation.png) | ![square](ch05_fourier/fourier_square_wave.png) | ![spectro](ch05_fourier/audio_spectrogram.png) |
+
+**🔑 关键代码片段**（`fourier_square_wave.py` —— 任何方波都能写成 sin(x) + sin(3x)/3 + sin(5x)/5 + ...，但永远残留约 9% 的"吉布斯 overshoot"）
+
+```python
+x = torch.linspace(-math.pi, math.pi, 2000)
+target = torch.sign(torch.sin(x))                # 方波
+
+# 傅里叶级数：只用奇次谐波
+n = torch.arange(1, k + 1, dtype=torch.float)
+odd = n[n % 2 == 1]
+approx = torch.zeros_like(x)
+for m in odd:
+    approx = approx + torch.sin(m * x) / m
+approx = approx * 4 / math.pi                    # k → ∞ 时趋向方波，但 overshoot 不消失
+```
+
 ### Chapter 6 · 概率与统计：从赌桌到 AI
 - **历史人物**：帕斯卡 & 费马（1654，赌徒分钱问题）、贝叶斯（1763）、高斯（1809，正态分布）、玻尔兹曼（1877，熵）
 - **核心思想**：概率论起源于**赌徒**，长成了**保险、量子力学、机器学习**的支柱。
@@ -231,6 +348,26 @@
   - `pascal_fermat_dice.py` —— 赌博分钱问题的蒙特卡洛仿真
   - `bayes_disease_test.py` —— 贝叶斯定理的医学诊断悖论
   - `mle_vs_map.py` —— 用 PyTorch 实现极大似然与最大后验
+
+**🖼️ 输出可视化**
+
+| 帕斯卡–费马的赌徒分钱（蒙特卡洛） | 贝叶斯检验悖论：99% 准确 ≠ 99% 患病 | 极大似然 vs 最大后验 |
+|:---:|:---:|:---:|
+| ![dice](ch06_probability/pascal_fermat_dice.png) | ![bayes](ch06_probability/bayes_disease_test.png) | ![mle](ch06_probability/mle_vs_map.png) |
+
+**🔑 关键代码片段**（`bayes_disease_test.py` —— 99% 准确度的检验，对 1% 患病率的人群依然只有 ~50% 后验概率，这就是基率忽略）
+
+```python
+sens = 0.99   # P(阳性 | 患病)
+spec = 0.99   # P(阴性 | 健康)
+
+# 贝叶斯公式：P(患病|阳性) = sens·prev / (sens·prev + (1-spec)·(1-prev))
+prevalences = torch.logspace(-5, -1, 200)
+posterior = (sens * prevalences) / (
+    sens * prevalences + (1 - spec) * (1 - prevalences)
+)
+# 当 prev = 1% 时，后验 ≈ 0.50 —— 一半的"阳性"其实是健康人
+```
 
 ### Chapter 7 · 现代深度学习：站在所有巨人的肩膀上
 - **核心思想**：当我们写下 `loss.backward()` 时，我们在同时使用：
@@ -242,6 +379,36 @@
 - 这一章把前面 6 章串起来，让学生**真正理解**：为什么深度学习不是"炼丹"，而是**三百年数学史的集大成者**。
 - **代码**：`ch07_deep_learning/`
   - `mnist_from_scratch.py` —— 用纯 PyTorch 训练 MNIST，每一行都标注"这一步对应历史上谁的工作"
+
+**🖼️ 输出可视化**
+
+![mnist](ch07_deep_learning/mnist_from_scratch.png)
+
+> 训练损失（Shannon 交叉熵 + Cauchy SGD）· 测试准确率 · 第一层权重（每个格子 = 一个神经元偏好的输入模式）· 模型预测 vs 真实标签
+
+**🔑 关键代码片段**（`mnist_from_scratch.py` —— 训练循环的 6 行代码，是 6 位历史人物的合作）
+
+```python
+# Cayley (1858)：一个全连接层 = 矩阵乘 + 偏置
+W1 = (torch.randn(784, 128) * 0.05).requires_grad_(True)
+b1 = torch.zeros(128, requires_grad=True)
+W2 = (torch.randn(128, 10) * 0.05).requires_grad_(True)
+b2 = torch.zeros(10, requires_grad=True)
+
+def model(x):
+    h = F.relu(x.view(x.shape[0], -1) @ W1 + b1)   # Cayley + Hahnloser (2000)
+    return h @ W2 + b2
+
+opt = torch.optim.SGD([W1, b1, W2, b2], lr=0.1)    # Cauchy 1847 + Robbins-Monro 1951
+
+for x, y in train_loader:
+    loss = F.cross_entropy(model(x), y)            # Boltzmann 熵 + Shannon 信息论
+    opt.zero_grad()
+    loss.backward()                                # Leibniz 链式法则，Rumelhart 1986 自动化
+    opt.step()                                     # 牛顿流数 → x.grad
+```
+
+> **一行 `loss.backward()` 的背后**：牛顿（微分）+ 高斯（线性代数）+ 柯西（梯度下降）+ 玻尔兹曼（熵）+ 香农（交叉熵）+ 莱布尼茨（链式法则）—— **三百年数学史在 0.001 秒里同时复活。**
 
 ---
 
