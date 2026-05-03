@@ -67,7 +67,7 @@ for col, (mat, title) in enumerate(steps):
         spine.set_color("saddlebrown")
         spine.set_linewidth(1.5)
     if col == 0:
-        ax.set_ylabel("九章 layout\n(columns = equations,\nright-to-left)",
+        ax.set_ylabel("Jiuzhang layout\n(columns = equations,\nright-to-left)",
                       fontsize=9, rotation=0, ha="right", va="center")
     ax.set_title(title, fontsize=9)
 
@@ -84,7 +84,7 @@ for col, (mat, title) in enumerate(steps):
                       fontsize=9, rotation=0, ha="right", va="center")
 
 plt.suptitle(
-    "遍乘直除 (≈ 263 CE Liu Hui)  ≡  Gaussian elimination (1809 Gauss)\n"
+    "Bian-cheng Zhi-chu (Liu Hui, ~263 CE)  =  Gaussian elimination (Gauss, 1809)\n"
     "two notations, one algorithm, 1500 years apart",
     y=1.02, fontsize=12,
 )
