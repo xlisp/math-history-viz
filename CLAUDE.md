@@ -26,14 +26,17 @@ ch07_deep_learning/    Synthesis — MNIST from scratch, each line tagged with i
 
 Chapter 7 is the keystone: it reuses primitives from chapters 1–6 to make the claim that deep learning is the convergence of three centuries of math. When adding to ch07, prefer demonstrating the lineage over introducing new techniques.
 
-## Pedagogical style: code over formulas, always visualize
+## Pedagogical style: code over formulas, always visualize, physics first
 
-This project teaches math through **executable code and visualization**, not through formula transcription. Two hard rules apply to every script:
+This project teaches math through **executable code and visualization**, not through formula transcription. Three hard rules apply to every script:
 
 1. **Prefer code to formulas.** Express mathematical ideas as runnable PyTorch / NumPy / SymPy code rather than LaTeX or comment-block equations. A derivative is `torch.autograd.grad(...)`, not `∂f/∂x` written in a docstring. A Fourier series is a loop that sums tensors, not a `\sum_{n=0}^{\infty}` block. When a formula is unavoidable (e.g., to name a historical equation), keep it to one line and immediately follow it with the code that computes it. The reader should be able to delete every formula in the file and still understand the math from the code alone.
 2. **Every script must produce a visualization.** No script is complete if it only prints numbers. Use Matplotlib / Seaborn for static plots, Manim for animated derivations, Streamlit / Jupyter widgets for interactive exploration. The visualization is the deliverable — the code exists to generate it. If a concept genuinely cannot be visualized (rare), justify that in a comment and produce a tensor-shape diagram or computation-graph render instead.
+3. **Physics first, problem-driven, not tool-driven** (per Chapter 0.7 — the Tsinghua-professor / Musk teaching critique). Almost every important formula was originally invented to answer a concrete physical question. Strip the question away and the formula becomes an unintelligible incantation. So for any script, **lead with the real-world phenomenon** (falling body, pendulum, RC decay, heat-rod, planet orbit, resonance, engine PV cycle…), simulate it first, and let the math drop out as the explanation of what the simulation is doing. The order is **phenomenon → simulation → dissection → formula**, never the reverse. The brain only durably remembers things it can attach to reality; respect that constraint. "Disassemble the engine, look at every part, then reassemble" is the working metaphor — applied to formulas instead of pistons.
 
 Lean on PyTorch even where NumPy would suffice: autograd makes the "compute gradient by running the program backwards" idea tangible, which is the whole point of framing modern math as Newton's fluxions modernized.
+
+The three meta-chapters (Chapter 0 perspectives, Chapter 0.5 formula-idioms, Chapter 0.7 physics-first) are *how* to learn; Chapters 1–7 are *what* to learn. When adding new content anywhere, check that it embodies all three: a structural perspective, a recurring idiom (squared / inverse-square / log / exp), and a real-world phenomenon it descends from.
 
 ## Tech stack (from README)
 
