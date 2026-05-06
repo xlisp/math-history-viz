@@ -337,7 +337,26 @@ print(y(2.5))                             # 像调用普通函数一样在任意
 print(y(7.1))                             # 同一条解函数，问它任意时刻
 ```
 
-> 一句话：**代数世界里 `solve` 返回 `float`；微分世界里 `solve` 返回 `Callable`。** 微积分把数学从"标量编程"升级到了"高阶编程"。
+同样这件事在 **Clojure / Lisp** 里更赤裸 —— Lisp 把"函数即值"作为一等公民，"返回函数"是默认动作而不是特例：
+
+```clojure
+;; 代数方程：返回数（这里 roots 用任意数值库；概念是 Vector → Vector）
+(roots [1 -5 6])                          ; → [3.0 2.0]
+
+;; 微分方程：solve 返回的就是 fn
+(defn solve-ode [f y0 t-end dt]
+  (let [trajectory (vec (reductions       ; reductions = scan：留下每一步快照
+                          (fn [y t] (+ y (* (f t y) dt)))
+                          y0
+                          (range 0 t-end dt)))]
+    (fn [t] (nth trajectory (int (/ t dt))))))   ; ← 返回值是一个 fn
+
+(def y (solve-ode (fn [t y] (* -0.3 y)) 1.0 10.0 0.01))
+(y 2.5)        ; 像普通函数一样调用
+(y 7.1)        ; 同一条解函数，任意时刻取值
+```
+
+> 一句话：**代数世界里 `solve` 返回 `float`；微分世界里 `solve` 返回 `Callable` / `fn`。** 微积分把数学从"标量编程"升级到了"高阶编程" —— Lisp 程序员对此本能地熟悉。
 
 #### 0.8.2 ODE vs PDE：独立变量数的差异
 
@@ -360,6 +379,25 @@ y = torch.zeros(N_steps)                  # shape: (T,)
 u = torch.zeros(N_steps, N_grid)          # shape: (T, X)
 ```
 
+在 **Clojure** 里，"偏导符号 $\partial / \partial t$" 几乎是字面对应到 `partial` —— 两者都在做同一件事：**冻住其他参数，把多元函数降成一元函数**：
+
+```clojure
+;; ODE：解是一元函数  t → state
+(def y (fn [t] ...))
+
+;; PDE：解是多元函数  (t, x) → state
+(def u (fn [t x] ...))
+
+;; 数学上的 ∂/∂t 就是"先 partial 再 D"：
+;;   1) 用 partial 把 x 冻住 ——把多元函数压成一元函数
+;;   2) 再用 Chapter 0.9 的 D 算子求一元导数
+(defn partial-t [u x0]
+  (D (fn [t] (u t x0))))                   ; ∂u/∂t |_(·,x₀)
+
+;; 同样可以冻住 t，研究"某个时刻的空间形状"
+(def u-at-t0 (partial u 0.0))              ; 只剩 x → state，是一条空间曲线
+```
+
 PDE 比 ODE 难，是因为系统的"状态"在每个时刻不再是一个数，而是**整个空间上的一条函数**。求解 PDE 的本质是：**让一条函数随时间演化成另一条函数** —— 这是"返回函数"的"返回函数"，签名约等于 `(x → State) → (x → State)`。所以热方程、波动方程、薛定谔方程才会一上来就显得吓人 —— 它们是高阶函数的高阶函数。
 
 #### 0.8.3 "求解留给下一个" = 积分 = `for` 循环
@@ -377,24 +415,45 @@ for t in range(N_steps):
     history.append(y)
 ```
 
-这段代码就是**牛顿 1666 年在伍尔索普庄园里干的事**的现代翻译。所谓"求解留给下一个"，就是 `y = y + dy` 这一行 —— **当前状态决定下一刻状态，下一刻再决定再下一刻，无穷递推**。在编程世界里这叫 `fold` / `scan` / `unfold`；在数学世界里这叫**积分**；在物理世界里它就是**因果律**本身。
+这段 Python `for` 循环换到 **Clojure** 里就**消失成一行 `reduce`** —— 因为 Lisp 把"沿序列累积"作为语言原语：
 
-更现代的求解器（Runge-Kutta、辛积分器、神经 ODE）只是把 `y + dy` 这一步换成更精巧的更新规则，骨架还是同一个 for 循环。**编程里你已经熟悉的那个迭代循环，就是积分**。
+```clojure
+;; 欧拉法 = reduce —— 一行就是"积分"
+(reduce
+  (fn [y t] (+ y (* (f t y) dt)))         ; 一步更新规则（= 方程）
+  y0                                       ; 初值
+  (range 0 t-end dt))                      ; 时间序列
+;; → 末态 y(t-end)
+
+;; reductions 留下每一步的快照（欧拉法的完整轨迹）
+(reductions
+  (fn [y t] (+ y (* (f t y) dt)))
+  y0
+  (range 0 t-end dt))
+;; → (y₀ y₁ y₂ … yₙ) —— 整条数值解函数
+```
+
+这就是为什么 Chapter 0.9 会把"积分 = `reduce`"当成口号 —— **微积分基本定理在 Lisp 里就是 `reduce` 和 `D` 互为左右逆**。
+
+这段代码（无论 Python 还是 Clojure）就是**牛顿 1666 年在伍尔索普庄园里干的事**的现代翻译。所谓"求解留给下一个"，就是 `y = y + dy` 这一行 —— **当前状态决定下一刻状态，下一刻再决定再下一刻，无穷递推**。在编程世界里这叫 `fold` / `scan` / `unfold`（Clojure 里就是 `reduce` / `reductions`）；在数学世界里这叫**积分**；在物理世界里它就是**因果律**本身。
+
+更现代的求解器（Runge-Kutta、辛积分器、神经 ODE）只是把 `y + dy` 这一步换成更精巧的更新规则，骨架还是同一个 `reduce`。**编程里你已经熟悉的那个迭代循环，就是积分**。
 
 #### 0.8.4 编程概念 ↔ 微分方程概念字典
 
-| 编程世界 | 微分方程世界 |
-|---------|------------|
-| 高阶函数 `A → (B → C)` | 解算子 `初值 → 解函数 y(t)` |
-| `Callable` 作为返回值 | 解一个 ODE / PDE |
-| `for` 循环累加 | 数值积分（欧拉、RK4） |
-| `fold` / `scan` | 把变化率从过去推到现在 |
-| 闭包（捕获参数） | 含参数的解族 $y(t;\,k, y_0)$ |
-| 递归 / 不动点 | 隐式格式、Picard 迭代 |
-| 流（Stream）/ 生成器 | 连续动力系统 |
-| `functools.partial` | 偏导数 $\partial u / \partial t$（冻住其他变量） |
-| 多维张量 `Tensor[T, X, Y]` | PDE 的离散化解 $u(t, x, y)$ |
-| 反向传播 `loss.backward()` | 伴随方程（adjoint equation） |
+| 通用编程世界 | Clojure / Lisp | 微分方程世界 |
+|---|---|---|
+| 高阶函数 `A → (B → C)` | `(fn [a] (fn [b] ...))` | 解算子 `初值 → 解函数 y(t)` |
+| `Callable` 作为返回值 | `fn` 直接返回 `fn` | 解一个 ODE / PDE |
+| `for` 循环累加 | `reduce` | 数值积分（欧拉、RK4 的末态） |
+| `fold` / `scan` | `reductions` | 完整解轨迹 $\{y_0, y_1, \dots\}$ |
+| 闭包（捕获参数） | Lisp 一等闭包 | 含参数的解族 $y(t;\,k, y_0)$ |
+| 递归 / 不动点 | `recur` / Y 组合子 | 隐式格式、Picard 迭代 |
+| 流（Stream）/ 生成器 | `lazy-seq` / `iterate` | 连续动力系统 |
+| `functools.partial` | `partial` | 偏导数 $\partial u / \partial t$（冻住其他变量） |
+| 函数复合 `f ∘ g` | `comp` | 链式法则、流形上的拉回 |
+| 多维张量 `Tensor[T, X, Y]` | `core.matrix` / Neanderthal | PDE 的离散化解 $u(t, x, y)$ |
+| 反向传播 `loss.backward()` | autograd 库 | 伴随方程（adjoint equation） |
 
 最后一行特别值得标记：**深度学习的反向传播本质上是在解一条反向的 ODE**（伴随方程）—— 神经 ODE（Chen et al. 2018）把这件事公开化了。Chapter 7 会把这条线接上。
 
@@ -407,10 +466,13 @@ for t in range(N_steps):
   - 把 `for t in steps: y = y + f(y)*dt` 这段循环和 `loss.backward()` 并排，揭示二者的同构
 - **代码**：`ch00_8_diffeq_as_higher_order/`
   - `solve_returns_function.py` —— 用 `scipy.solve_ivp(dense_output=True)` 演示"返回值就是一个 callable"
+  - `solver_returns_fn.clj` —— 同一件事的 Clojure 版：`solve-ode` 直接返回 `fn`，把"函数返回函数"变成默认而非特例
   - `euler_as_for_loop.py` —— 把欧拉法写成 10 行 for 循环，标注每一行对应数学里的什么
+  - `euler_as_reduce.clj` —— 用一行 `(reduce ...)` 写出欧拉法，对照 Python for 循环看它如何"消失"
   - `ode_vs_pde.py` —— RC 衰变（ODE）和 1D 热传导（PDE）的并排数值仿真
   - `solution_family.py` —— 同一方程不同初值的解族，看初值条件如何"挑出"唯一解
   - `partial_as_functools.py` —— 用 `functools.partial` 类比偏导数：冻住其他变量后剩下的 1D 函数
+  - `partial_as_partial.clj` —— Clojure 的 `partial` 与数学符号 $\partial$ 的字面对应
   - `adjoint_as_backprop.py` —— 用 `torchdiffeq` 演示伴随方程 = 反向传播
 
 > **元教学意义**：本章不教任何新公式，它教**如何用编程的眼睛看微分方程**。读完后再看 Chapter 5（傅里叶 / 热方程）和 Chapter 7（神经 ODE / 扩散模型），它们其实在用同一句话描述自己：**"我返回的是一个函数。"**
