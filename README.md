@@ -653,16 +653,139 @@ x
 > **元教学意义**：本章把 0.8 的"返回函数"再推一层。看到深度学习堆 100 层、扩散模型反复去噪、ODE 求解器迭代逼近，统统问一句：**"这是哪个算子的不动点？λ 被叠了几层？"** —— 答案永远是这两个原语的组合。这就是 1936 年丘奇留给我们的礼物。
 
 ### Chapter 1 · 数列与归纳：人类如何"看见无穷"
-- **历史人物**：毕达哥拉斯（前 570）、斐波那契（1202，比萨的 Leonardo）、帕斯卡（1654）
-- **核心思想**：从有限的几个数中，**猜出无穷的规律**，再用**数学归纳法**证明它真的对。
+
+> "递推公式就是 lambda 不断自喂；数学归纳法就是不动点的证明形态。" —— Chapter 0.8 / 0.9 在数列上的最朴素显形。
+
+数列是整个项目"高阶函数 → 不动点 → 神经网络"主线的**第一站**。把 Chapter 0.8（函数返回函数）和 Chapter 0.9（lambda × 不动点）的眼镜戴上之后，斐波那契、帕斯卡、归纳法不再是中学课本里三块互不相关的内容，而是**同一种结构在不同表象下的显形**。本章用 Clojure 把这种结构同一性显式地拉出来。
+
+#### 1.1 历史人物与原始问题
+
+- **毕达哥拉斯（前 570）**：把数列做成石子图形 ——"三角形数"、"平方数"、"长方形数"。Chapter 0 的"配对求和"直觉就是从这里开始的。
+- **斐波那契（1202，比萨的 Leonardo）**：在《算盘书》里抛出**兔子繁殖问题** —— $F_{n+1} = F_n + F_{n-1},\; F_0 = 0,\; F_1 = 1$。这是欧洲数学史上最古老的递推之一。
+- **帕斯卡（1654）**：在与费马讨论赌博分钱问题（→ Chapter 6 概率论的起源）时，整理出帕斯卡三角，并第一次在《论数字三角形》中**严格表述**了数学归纳法。
+
+#### 1.2 递推公式 ≡ `iterate` ≡ lambda 的塔
+
+斐波那契写下 $F_{n+1} = F_n + F_{n-1}$ 时，他在做的事和 Chapter 0.9 的 "111 lambda lambda lambda" **完全一致** —— 把同一个 step 函数反复套自己。在 Clojure 里这是字面对应：
+
+```clojure
+;; 单变量递推：xₙ₊₁ = f(xₙ)
+;; iterate 把 lambda 套自己无穷多次 —— 就是 0.9 章 lambda 的塔
+(def step (fn [x] (* 2 x)))
+(take 5 (iterate step 1))                        ; → (1 2 4 8 16)
+
+;; 斐波那契是双变量递推 (a, b) → (b, a+b)
+;; 把状态升一维以后，又变回单变量 lambda
+(def fib-step (fn [[a b]] [b (+ a b)]))
+(map first (take 10 (iterate fib-step [0 1])))   ; → (0 1 1 2 3 5 8 13 21 34)
+```
+
+`iterate` 的语义就是 0.9 那张抽象塔的字面写法：
+```
+(iterate f x) = (x, f(x), f(f(x)), f(f(f(x))), …)
+```
+
+**所有数列都是一条 lambda 被反复喂养自己产生的轨迹。** 这件事在 Chapter 2（微积分）里会进化成"让差分间隔趋零 → 导数"，在 Chapter 5（傅里叶）里会进化成 PDE 时间步进，在 Chapter 7 里会进化成 RNN / 神经 ODE 的状态更新。**它们的骨架都是同一行 `iterate`。**
+
+#### 1.3 闭式解 ≡ 寻找递推算子的不动方向（特征向量）
+
+斐波那契的闭式解（Binet 公式 1843）$F_n = \dfrac{\phi^n - \psi^n}{\sqrt{5}}$ 看着像魔法，从不动点视角看毫不神秘 —— 它是在问 "**这个递推算子在哪条方向上自相似？**"
+
+把递推写成矩阵：
+
+$$\begin{pmatrix} F_{n+1} \\ F_{n+2} \end{pmatrix} = \begin{pmatrix} 0 & 1 \\ 1 & 1 \end{pmatrix} \begin{pmatrix} F_n \\ F_{n+1} \end{pmatrix}$$
+
+**寻找闭式解 = 寻找该矩阵的特征向量** —— 因为特征向量就是"被算子作用后只缩放、不转向"的不动方向：$Av = \lambda v$。这正是 Chapter 0.9.3 不动点表里 PageRank 那一行的兄弟。
+
+```clojure
+(require '[clojure.core.matrix :as m]
+         '[clojure.core.matrix.linear :as l])
+
+(def A (m/matrix [[0 1] [1 1]]))
+(:A (l/eigen A))      ; 特征值 = φ ≈ 1.618…, ψ ≈ -0.618…
+(:Q (l/eigen A))      ; 特征向量：递推算子的"不动方向"
+
+;; 沿特征方向初始化，递推就退化成"乘以 φ" —— 即 Fₙ ≈ φⁿ/√5（Binet 公式）
+```
+
+这一招（**把递推 / 微分方程对角化到特征方向**）会在后续章节反复出现：
+
+- **Chapter 4**：PCA / SVD = 协方差矩阵的特征向量
+- **Chapter 5**：傅里叶基 = $\dfrac{d}{dx}$ 算子的特征函数（$e^{ikx}$）
+- **Chapter 7**：注意力机制 = "和 Query 最对齐的不动方向"
+
+> **同一句话贯穿全书：找算子的不动方向。** 在 Fibonacci 是 2×2 矩阵，在傅里叶是无穷维微分算子，在 PageRank 是十亿维转移矩阵 —— 但都是一回事。
+
+#### 1.4 数学归纳法 ≡ 递归 ≡ Y 组合子（Curry-Howard 同构的最朴素入口）
+
+数学归纳法的两条规则：
+1. 基础：$P(0)$ 成立。
+2. 归纳：$P(n) \Rightarrow P(n+1)$。
+
+在 Lisp 里这就是递归函数的两个 `if` 分支 —— **完全一一对应**：
+
+```clojure
+;; 一段递归 = 一次归纳证明
+(defn my-sum [n]
+  (if (zero? n)
+    0                                ; 基础情形 P(0)
+    (+ n (my-sum (dec n)))))         ; 归纳步：P(n-1) ⇒ P(n)
+
+;; 用 Chapter 0.9 的 Y 组合子表达同一件事 —— 没有 def，纯 lambda
+(def sum
+  (Y (fn [self]
+       (fn [n] (if (zero? n) 0 (+ n (self (dec n))))))))
+
+(= (sum 100) (/ (* 100 101) 2))      ; → true，高斯小学故事的 Y 版本
+```
+
+这并非比喻，而是 **Curry-Howard 同构**在最朴素位置上的体现：
+
+| 数学世界 | 编程世界 |
+|---|---|
+| 自然数上的归纳法 | Peano 自然数上的递归 |
+| $P(0) \wedge \forall n.\ P(n) \Rightarrow P(n+1)$ | `(if (zero? n) base (step (recur (dec n))))` |
+| "证明对所有 $n$ 都成立" | "对任意输入都终止并给出结果" |
+| 多米诺骨牌（一倒到底） | Y 组合子的不动点（无穷自指闭合） |
+
+**当一个学生学会"递推可以推到无穷"时，他其实已经掌握了不动点 —— 只是没人告诉他这个名字。** 本节是连接中学数学（归纳法）和大学计算机科学（递归 / 不动点 / Y）的桥梁，也为 Chapter 7 "训练 = 不动点收敛"做心理准备。
+
+#### 1.5 生成函数 ≡ 把无穷数列封装成 fn（Chapter 0.8 思想的离散祖先）
+
+欧拉 1740 在《无穷分析引论》里发明的生成函数：把数列 $\{a_n\}$ 编码成 $A(x) = \sum a_n x^n$。这件事的现代翻译是：**把"列表"提升为"函数"** —— 正是 Chapter 0.8 "未知是函数"思想的离散版前身。
+
+```clojure
+;; 数列：(0 1 1 2 3 5 8 13 21 …)
+;; lazy-seq 是 Lisp 把"列表当函数用"最直接的工具：
+;; 这条 fib 在被取用之前并不存在，被取到第 n 项时才算到第 n 项
+(def fib
+  (lazy-cat [0 1] (map + fib (rest fib))))      ; 自指：定义里引用自己
+
+(take 10 fib)   ; → (0 1 1 2 3 5 8 13 21 34)
+
+;; 形式幂级数级的生成函数：把整条无穷数列压成一个有理函数
+;;   A(x) = x / (1 - x - x²)
+(defn fib-gen [x] (/ x (- 1 x (* x x))))
+```
+
+> 注意 `(def fib (lazy-cat [0 1] (map + fib (rest fib))))` 的妙处：**fib 的定义里引用了它自己** —— 这就是 Y 组合子在 `lazy-seq` 上的化身。**自指 + 惰性 = 把无穷折叠成有限**。这是 Lisp 1958 年就提供的玩具，今天在 Haskell、Clojure、神经网络（RNN 的隐状态、扩散模型的迭代）里随处可见。
+
+#### 1.6 可视化与代码
+
 - **可视化**：
-  - 斐波那契数列 → 黄金螺线 → 向日葵种子排列（用 PyTorch 张量生成）
-  - 帕斯卡三角形 → 二项式定理 → 杨辉三角动画
-  - 数学归纳法的"多米诺骨牌"动画：第一块倒下 + 任意一块倒下都会推倒下一块
+  - 斐波那契数列 → 黄金螺线 → 向日葵种子排列（PyTorch 张量生成）
+  - 帕斯卡三角形 → 二项式定理 → mod 2 自动浮现谢尔宾斯基分形
+  - 数学归纳法的"多米诺骨牌"物理仿真：第一块倒下 + 任意一块倒下都推倒下一块
+  - **新增**：`(iterate ...)` 的 lambda 塔与多米诺骨牌**同步动画** —— 视觉锁死 1.4 的同构
+  - **新增**：Fibonacci 矩阵 $A$ 的特征向量场 —— 任意初值在几步内倒向 $\phi$ 方向
 - **代码**：`ch01_sequences/`
   - `fibonacci_spiral.py` —— 用 PyTorch 生成黄金螺线，叠加真实向日葵照片
+  - `fib_as_iterate.clj` —— 一行 `(iterate ...)` 实现 Fibonacci，对照 Python 循环看 lambda 塔
+  - `fib_eigenvalue.clj` —— 用矩阵特征值求 Binet 闭式解，揭示"闭式 = 不动方向"
   - `pascal_triangle.py` —— Manim 动画演示帕斯卡三角的对称性
   - `induction_dominoes.py` —— 多米诺骨牌物理仿真
+  - `induction_as_Y.clj` —— 用 Chapter 0.9 的 Y 组合子重写归纳证明，让 Curry-Howard 字面浮现
+  - `generating_fn_lazy.clj` —— `(def fib (lazy-cat [0 1] (map + fib (rest fib))))`，自指 + 惰性 = 生成函数
 
 **🖼️ 输出可视化**
 
@@ -670,7 +793,9 @@ x
 |:---:|:---:|:---:|
 | ![fibonacci](ch01_sequences/fibonacci_spiral.png) | ![pascal](ch01_sequences/pascal_triangle.png) | ![induction](ch01_sequences/induction_dominoes.png) |
 
-**🔑 关键代码片段**（`fibonacci_spiral.py`：Vogel 的向日葵种子排列，黄金角 ≈ 137.5°）
+**🔑 关键代码片段** —— Python 与 Clojure 并排，揭示同一思想的两副面孔
+
+`fibonacci_spiral.py` —— Vogel 的向日葵种子排列，黄金角 ≈ 137.5°（**结果**：黄金螺线）
 
 ```python
 # 黄金角的弧度值 —— 大自然给出的"最不可整除"角度
@@ -682,7 +807,19 @@ sun_x = sun_r * torch.cos(sun_theta)
 sun_y = sun_r * torch.sin(sun_theta)
 ```
 
-`pascal_triangle.py`：帕斯卡三角的递推 + mod 2 自动浮现谢尔宾斯基分形
+`fib_as_iterate.clj` —— 同一条 Fibonacci 的 Lisp 一行写法（**机制**：lambda 塔）
+
+```clojure
+;; 单一 step 函数自喂自喂自喂 …… 直到取走所需数量
+(def fib-step (fn [[a b]] [b (+ a b)]))
+(->> [0 1]
+     (iterate fib-step)              ; ← (x, f(x), f(f(x)), …) 即 0.9 章 lambda 的塔
+     (map first)
+     (take 20))
+;; → (0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597 2584 4181)
+```
+
+`pascal_triangle.py` —— 帕斯卡三角的递推 + mod 2 自动浮现谢尔宾斯基分形
 
 ```python
 T = torch.zeros(N, N, dtype=torch.long); T[0, 0] = 1
@@ -691,6 +828,20 @@ for i in range(1, N):
         T[i, j] = (T[i-1, j-1] if j > 0 else 0) + (T[i-1, j] if j < i else 0)
 sierpinski = (T % 2).float()           # 一行 mod 2，1654 → 20 世纪的分形
 ```
+
+`induction_as_Y.clj` —— 在没有名字的世界里完成数学归纳法（**结构**：Curry-Howard）
+
+```clojure
+;; 用 Y 组合子（Chapter 0.9）证明 1+2+…+n = n(n+1)/2 的算法对偶
+;; sum 自己不知道自己叫 sum —— 完全靠不动点闭合递归
+(def sum
+  (Y (fn [self]
+       (fn [n] (if (zero? n) 0 (+ n (self (dec n))))))))
+
+(= (sum 100) (/ (* 100 101) 2))   ; → true（高斯小学故事的现代验证）
+```
+
+> **本章把 Chapter 0.8 / 0.9 的元思想锚回到最朴素的入口：数列。** 当你看完 Chapter 1 还能说"我懂递推、我懂归纳、我懂闭式解" —— 那你已经在不知不觉中掌握了不动点、Y 组合子、特征向量。后续 Chapter 2-7 只是把这套工具搬到不同的舞台上重演。
 
 ### Chapter 2 · 从数列到微积分：两千年的接力赛
 - **核心思想**：当你**让差分的间隔无限缩小**，离散的数列就变成了连续的曲线，**导数**和**积分**就诞生了。但这个"无限缩小"的念头，是**七十多代人**前赴后继才搞清楚的。
