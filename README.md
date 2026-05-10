@@ -809,7 +809,43 @@ plt.subplot(2,1,2); plt.plot(x, resid, '.')                  # 残差里藏着 s
 
 > **方法论**：拟合不是终点，是**把已知部分扣掉、让未知部分浮上来**的工具。$R^2$ 高只代表"我猜对了看得见的部分"，残差才告诉你"还有多少看不见的"。
 
-#### 0.95.6 可视化与代码
+#### 0.95.6 训练信号是"导数的导数"：数学功底就是解码这些信号的能力
+
+> "看不出 loss 在哪条曲线上，就只能玄学调参。" —— 任何带过新人的 ML lead
+
+回到本章开头的问题：`loss = 0.0231` —— 这数本身告诉了你什么？**几乎什么也没有**。它必须放进**至少七层导数与对比**里才开始说话：
+
+| 你看到的 | 真正的"信号"是它的什么 | 数学概念 | 凭这个判断 |
+|---|---|---|---|
+| `loss = 0.0231` | 单点值 | （什么也不是） | 无法判断好坏 |
+| loss 曲线 | 一阶导 $dL/dt$ | 微分 | 在下降 / 持平 / 上升 |
+| loss 曲线的曲率 | 二阶导 $d^2L/dt^2$ | 微分 | 加速收敛 / 减速逼近平台 |
+| 梯度范数 $\|\nabla L\|$ | 信号还在不在 | 范数 | "卡死"还是"在动" |
+| update / weight 比 | $\eta\|\nabla L\| / \|W\|$ | Karpathy 经验式 ≈ $10^{-3}$ | lr 是否处在合理量级 |
+| Hessian 谱半径 $L$ | 优化器稳定半径 $\eta < 2/L$ | 谱论 | lr 是否会发散 |
+| train loss vs val loss | 二者之差 | 泛化界 | 是否过拟合 |
+
+**这就是为什么数学功底决定你能否真正调通模型** —— 不是因为你需要手推梯度，而是因为你需要**知道盯哪些"导数的导数"**。没有微积分直觉的人盯着 `loss = 0.0231` 想"是不是再训 100 步就好了"；有微积分直觉的人同时看 $d^2L/dt^2 \to 0$、$\|\nabla L\| \to 0$、$\eta\|\nabla L\|/\|W\| < 10^{-5}$ —— 五分钟就判断 **"已经卡平台了，要么加 warmup-restart，要么换 lr schedule"**，省下后面几天的瞎跑。
+
+把训练日志当作 **一组联立微分方程的输出** 来读，这是 Chapter 0.8（微分方程）和 Chapter 2（微积分）在工程现场最直接的回报。下表是常见症状到数学诊断到调整方向的字典 —— 几乎覆盖了 90% 的"我的训练为什么不对"：
+
+| 症状 | 数学诊断 | 调整方向 |
+|---|---|---|
+| loss 直接 NaN | step 跨过 Hessian 稳定半径 $2/L$ | lr ÷ 10、加 gradient clip |
+| loss 卡在 0.6 死活不动 | $\|\nabla L\| \to 0$ 但 loss 仍高 | 初始化坏 / 死 ReLU / 数值下溢；换 init、查激活分布 |
+| loss 锯齿震荡 | $\eta \cdot L > 1$ | lr ÷ 2、或加 warmup |
+| train ↓ 而 val ↑ | 泛化间隙发散 | 加正则、早停、数据增广 |
+| 两个 seed 跑出截然不同结果 | 损失景观坑洼、初始化敏感 | 更长 warmup、EMA、SAM |
+| loss 下降但 metric 不动 | 优化的是错的 surrogate | 换损失函数 / 校准目标 |
+| 训练前期飞快、后期完全停滞 | 信号集中在低频本征方向，剩下方向被 lr 漏掉 | 加 lr-rewarming、cosine restart |
+
+每一行的"数学诊断"都是 Chapter 2（微积分）/ Chapter 4（线代谱论）/ Chapter 6（概率泛化界）的直接应用 —— 在课本里它们是孤立的章节，在训练日志面前它们是同一种 **"读导数"** 的能力。
+
+> **经济学论证**：一张 H100 一小时 ≈ \$4。一次失败的 7B 训练（凭手感调参、跑 5 天才发现 lr 错了）≈ 8 卡 × 24 小时 × 5 天 × \$4 ≈ **\$4000 学费**。而 **30 分钟读 loss / grad-norm / Hessian 谱**就能在第 1 小时发现问题。**数学比 GPU 便宜**。这就是 Karpathy 在 [A Recipe for Training Neural Networks](http://karpathy.github.io/2019/04/25/recipe/) 里反复强调的核心：**调参不是手艺，是诊断**。诊断需要你认识每一个"症状数字"对应的数学量，以及它的健康区间在哪里。
+
+> **本项目对深度学习从业者的承诺**：把 Chapter 2（微积分）、Chapter 4（线代谱）、Chapter 6（概率泛化）学透之后回头看训练日志，**每一个数字都不再是噪声，而是带签名的诊断信号**。这就是"会调 PyTorch API"和"能调通模型"的真正分水岭 —— 也是这个项目把 Chapter 0–6 全部走完才进 Chapter 7 的根本原因。
+
+#### 0.95.7 可视化与代码
 
 - **可视化**：
   - 0.001 vs 0.002 的"分水岭谱图"：六种语境（lr / RK4-h / 有限差分-h / CFL / p-value / 复利）并排，每张子图标出临界值
@@ -826,6 +862,10 @@ plt.subplot(2,1,2); plt.plot(x, resid, '.')                  # 残差里藏着 s
   - `fermi_estimate.py` —— 训练成本、推理延迟、内存占用的 Fermi 估算模板
   - `dimensional_check.py` —— 用 `sympy.physics.units` / `pint` 对公式做量纲检查
   - `residual_reveals_signal.py` —— "故意欠拟合 → 残差里露出真规律"的可重复演示
+  - `loss_diagnostics.py` —— 训练时同步追踪 loss / $\|\nabla L\|$ / update-to-weight ratio / Hessian top eigenvalue 四联屏
+  - `nan_postmortem.py` —— 故意触发 NaN，逐步回放找出"哪个量先爆"的诊断流程
+  - `lr_schedule_compare.py` —— constant / warmup / cosine / one-cycle 四种 schedule 下二阶导 $d^2L/dt^2$ 的演化对比
+  - `karpathy_recipe_checklist.py` —— 把 Karpathy 的训练秘籍编码成可运行的 assert（gradient norm 量级、init 方差、激活均值 / 方差范围）
 
 > **元教学意义**：本章是给"做完实验之后"的方法论。Chapter 0.7 教你**怎么把现象建成模型**，本章教你**怎么审问模型吐出的数字**。每次面对一个具体数值，依次问：
 > 1. 它**和谁比**？（对比法）
