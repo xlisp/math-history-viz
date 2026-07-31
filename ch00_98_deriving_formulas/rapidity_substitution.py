@@ -56,7 +56,8 @@ def symbolic_check():
     print("=" * 74)
     print(f"  速度叠加 (β₁+β₂)/(1+β₁β₂) - tanh(θ₁+θ₂) = {residual}     ← 必须是 0")
     print(f"  γ  = 1/√(1-β²)        = {sp.simplify(1/sp.sqrt(1-b**2))}")
-    print(f"  γβ = β/√(1-β²)        = {sp.simplify(b/sp.sqrt(1-b**2))}")
+    print(f"  γβ = β/√(1-β²) - sinh θ = {sp.simplify((b/sp.sqrt(1-b**2) - sp.sinh(th)).rewrite(sp.exp))}"
+          "     ← 必须是 0，即 γβ = sinh θ")
     print(f"  多普勒 √((1-β)/(1+β)) = "
           f"{sp.simplify(sp.sqrt((1-b)/(1+b)).rewrite(sp.exp))}")
     print("\n  一个换元，四个丑东西同时塌缩 —— 这就是「结构变简单了」的意思。")
