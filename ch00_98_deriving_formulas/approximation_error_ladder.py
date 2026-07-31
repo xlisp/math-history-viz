@@ -156,7 +156,7 @@ def main():
                 color=col, alpha=.55)
     ax.set_xlabel("时间 t (s)")
     ax.set_ylabel(r"$\theta/\theta_0$")
-    ax.set_title("③ 虚线 = 小角简谐解。θ₀ 小时完全重合，\nθ₀ 大时相位越差越远",
+    ax.set_title("③ 虚线 = 小角简谐解。振幅小时完全重合，\n振幅大时相位越差越远",
                  fontsize=11.5, fontweight="bold")
     ax.legend(fontsize=8.8)
     ax.grid(alpha=.3)
