@@ -21,7 +21,7 @@ Chapter 0.98.6 · 验收三板斧：怎么知道自己推对了
     你可以说服自己「这一步应该没问题」，但你说服不了一个不同意的数字。
 
 本脚本把这三板斧做成一个可复用的框架，并用四个公式演示：
-    ∫e^{-x²}dx = √π  /  ∫₀^∞ x²e^{-x}dx = 2  /  球体积 4πr³/3  /  Var[X] = E[X²]-μ²
+    ∫e^{-x²}dx = √π  /  ∫₀^∞ x²e^{-x}dx = 2  /  ∫₀¹4/(1+x²)dx = π  /  Var[X] = E[X²]-μ²
 
 运行：  python ch00_98_deriving_formulas/derivation_crosscheck.py
 ================================================================================
@@ -235,7 +235,7 @@ def main():
     ax.xaxis.set_major_formatter(PLAIN)
     ax.set_xlabel("采样数 n")
     ax.set_ylim(3.5, 5)
-    ax.set_title("⑤ 随机路径慢慢爬向闭式解\n误差 ∝ 1/√n（中心极限定理）",
+    ax.set_title("⑤ 单位球体积的蒙特卡洛：\n随机路径慢慢爬向闭式解，误差 ∝ 1/√n",
                  fontsize=11.5, fontweight="bold")
     ax.legend(fontsize=9)
     ax.grid(alpha=.3, which="both")
