@@ -53,14 +53,14 @@ def main():
     a2.grid(alpha=.3)
 
     # ---- ③ 奇异值 ---------------------------------------------------------
-    A = torch.randn(8, 8) @ torch.randn(8, 3) @ torch.randn(3, 8)   # 秩 ≈ 3
+    A = torch.randn(8, 3) @ torch.randn(3, 8) + 0.02 * torch.randn(8, 8)  # 秩 ≈ 3 + 微噪
     sv = torch.linalg.svdvals(A)
     a3.bar(range(1, len(sv) + 1), sv, color="#e67e22")
-    a3.set_yscale("log")
     a3.set_title(r"③ 线性代数：$\sigma_i$ = 奇异值", fontsize=12, fontweight="bold")
     a3.set_xlabel(r"$A=U\Sigma V^{\top}$ 的对角元 —— 注意这里大写 $\Sigma$ 也不是求和！")
     a3.grid(axis="y", alpha=.3)
-    a3.annotate("秩 ≈ 3：后面的奇异值断崖", xy=(4, sv[3]), xytext=(4.5, sv[0] / 3),
+    a3.annotate("秩 ≈ 3：后面的奇异值断崖到接近 0",
+                xy=(4, sv[3]), xytext=(4.2, sv[0] / 2),
                 fontsize=9.5, arrowprops=dict(arrowstyle="->", color="#c0392b"))
 
     # ---- ④ 置换 -----------------------------------------------------------

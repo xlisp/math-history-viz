@@ -136,9 +136,13 @@ def main():
     bars = axR.barh(names, errs, color="#27ae60")
     axR.set_xscale("log")
     axR.set_xlim(1e-10, 1e-3)
+    # 刻度标签写成纯文本：中文字体缺 U+2212，让 mathtext 去画 10^{-9} 会掉字形
+    axR.set_xticks([1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4],
+                   ["1e-9", "1e-8", "1e-7", "1e-6", "1e-5", "1e-4"])
+    axR.minorticks_off()
     axR.axvline(1e-7, color="#c0392b", ls="--", lw=1.5)
     axR.text(1.1e-7, -0.42, "float32 精度线", color="#c0392b", fontsize=9)
-    axR.set_xlabel("|手写循环 − 库函数|（越小越好）")
+    axR.set_xlabel("|手写循环 - 库函数|（越小越好）")
     axR.set_title("四个公式的对拍误差", fontsize=12, fontweight="bold")
     axR.grid(axis="x", alpha=.3)
     for b, e in zip(bars, errs):

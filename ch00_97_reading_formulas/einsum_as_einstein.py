@@ -60,7 +60,7 @@ def main():
         ('"i,j->ij"',    "外积 outer(u,v)",     torch.einsum("i,j->ij", u, v),        torch.outer(u, v)),
         ('"ij->ji"',     "转置 A.T",            torch.einsum("ij->ji", A),            A.T),
         ('"ij,ij->"',    "全元素内积 (A*A).sum", torch.einsum("ij,ij->", A, A),        (A * A).sum()),
-        ('"bnd,bmd->bnm"', "批量注意力 QKᵀ",    torch.einsum("bnd,bmd->bnm", Qb, Kb), Qb @ Kb.transpose(1, 2)),
+        ('"bnd,bmd->bnm"', "批量注意力 QK^T",    torch.einsum("bnd,bmd->bnm", Qb, Kb), Qb @ Kb.transpose(1, 2)),
     ]
 
     print("爱因斯坦 1916 的偷懒规则，今天叫 torch.einsum：")
@@ -75,7 +75,7 @@ def main():
     print(f"\n手写三重循环 vs einsum 最大偏差 = {(C - C_loop).abs().max():.2e}   ✓")
     print("（那第三重 for j 循环，就是爱因斯坦省掉的那个 Σ）")
 
-    fig, axes = plt.subplots(1, 4, figsize=(19, 5),
+    fig, axes = plt.subplots(1, 4, figsize=(19, 6.2),
                              gridspec_kw={"width_ratios": [1, 1, 1, 1.5]})
 
     for ax, M, title, xl, yl in [
@@ -83,10 +83,12 @@ def main():
         (axes[1], B, r"$B_{jk}$" + f"   shape {tuple(B.shape)}", "k（保留）", "j（将被求和掉）"),
         (axes[2], C, r"$C_{ik}=A_{ij}B_{jk}$" + f"   shape {tuple(C.shape)}", "k", "i"),
     ]:
-        im = ax.imshow(M, cmap="RdBu_r")
+        im = ax.imshow(M, cmap="RdBu_r", aspect="auto")
         for r in range(M.shape[0]):
             for c in range(M.shape[1]):
                 ax.text(c, r, f"{M[r, c]:.1f}", ha="center", va="center", fontsize=8)
+        ax.set_xticks(range(M.shape[1]))
+        ax.set_yticks(range(M.shape[0]))
         ax.set_title(title, fontsize=12, fontweight="bold")
         ax.set_xlabel(xl)
         ax.set_ylabel(yl)
@@ -95,6 +97,8 @@ def main():
     # ---- 右：对拍表 --------------------------------------------------------
     ax = axes[3]
     ax.axis("off")
+    ax.set_xlim(0, 1)          # 关掉坐标轴后仍要钉死数据范围，否则 tight_layout 会算飞
+    ax.set_ylim(0, 1)
     ax.set_title("einsum 字符串 = 爱因斯坦记号本身", fontsize=12, fontweight="bold")
     ax.text(0.0, 0.94, "字符串", fontsize=10.5, fontweight="bold", color="#2980b9")
     ax.text(0.42, 0.94, "等价的传统写法", fontsize=10.5, fontweight="bold", color="#2980b9")
@@ -119,7 +123,7 @@ def main():
     fig.suptitle(r"$\sum_j A_{ij}B_{jk}\;\to\;A_{ij}B_{jk}$：爱因斯坦 1916 年省掉的那个 $\Sigma$，"
                  "今天叫 torch.einsum",
                  fontsize=14, fontweight="bold")
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
     out = Path(__file__).with_suffix(".png")
     fig.savefig(out, dpi=140, bbox_inches="tight")
     print(f"\n图已保存到 {out}")
