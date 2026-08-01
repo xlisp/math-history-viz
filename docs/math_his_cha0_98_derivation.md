@@ -583,7 +583,60 @@ theorem mc2_has_energy_dimension : kg * (velocity * velocity) = energy := by dec
 #check_failure (mass.add light)              -- m + c   → 加法拒绝异量纲
 ```
 
-> 三种严格程度，成本递增：**纸笔靠自觉**（最便宜，也最容易翻车 —— 1999 年火星气候轨道器就毁于磅力秒和牛顿秒混用）→ **Python 运行时对拍**（跑到了才发现）→ **Lean 编译期检查**（写错了根本编不过）。
+### 再附：实数版（`mathlib_proofs/`，需要 mathlib）
+
+上面那些文件只用 Lean core，**没有实数** —— 所以它们只能表达「去分母之后的等价式」。
+真正的 $\gamma = 1/\sqrt{1-\beta^2}$、多普勒因子、高斯积分，必须有 $\mathbb{R}$ 和测度论才写得出来。
+**形式化的表达能力，决定了你能不能诚实地陈述那个定理。**
+
+| 定理 | 内容 |
+|------|------|
+| `Emc.photon_box` | 光子盒，**带真正的除法**：$m = E/c^2$。`hc : c ≠ 0`、`hL : L ≠ 0` 是 `field_simp` 逼出来的 |
+| `Emc.doppler_sum` | $\sqrt{\tfrac{1-\beta}{1+\beta}} + \sqrt{\tfrac{1+\beta}{1-\beta}} = 2\gamma$ —— 1905 推导的技术核心 |
+| `Emc.gamma_second_order` | **夹逼**：$\lvert\beta\rvert\le\frac12$ 时 $\frac{\beta^2}{2} \le \gamma-1 \le \frac{2}{3}\beta^2$ |
+| `Emc.approx_error_le` | **账单**：$\bigl\lvert(\gamma-1)-\frac{\beta^2}{2}\bigr\rvert \le \beta^4$ |
+| `Emc.newtonian_limit` | **对应原理**：$\beta\to0$ 时 $(\gamma-1)/\beta^2 \to \frac12$ |
+| `GaussInt.gaussian_integral` | $\int_{-\infty}^{\infty}e^{-x^2}dx = \sqrt{\pi}$ |
+| `GaussInt.gaussian_integral_half` | $\int e^{-x^2/2}dx = \sqrt{2\pi}$ —— 高斯密度里那个 $\sqrt{2\pi}$ 的出处 |
+| `GaussInt.jacobian_matters` | $\sqrt{\pi} \ne \pi^{3/4}$ —— 漏掉雅可比得到的那个数，**确实是错的** |
+| `GaussInt.polar_jacobian_is_r` | mathlib 极坐标换元定理里那个 `p.1 •`，就是雅可比 $r$ |
+
+后三条把 0.98.5 的两个陷阱钉死了。先看**近似的账单** —— 文章里说「展开到 $v^2$ 阶，丢掉 $O(v^4)$」，在纸上那是一句修辞；在这里它是两条必须被证明的不等式加一条极限：
+
+```lean
+/-- 关键恒等式：γ - 1 = β²/(s(1+s))，其中 s = √(1-β²)。二阶行为全藏在这一行。 -/
+theorem gamma_sub_one_eq (b : ℝ) (hb : |b| < 1) :
+    gamma b - 1 = b ^ 2 / (Real.sqrt (1 - b ^ 2) * (1 + Real.sqrt (1 - b ^ 2)))
+
+/-- 近似的账单：用 β²/2 冒充 γ-1，误差不超过 β⁴。「利率」被写死了。 -/
+theorem approx_error_le (b : ℝ) (hb : |b| ≤ 1 / 2) :
+    |(gamma b - 1) - b ^ 2 / 2| ≤ b ^ 4
+
+/-- 对应原理的严格版：β → 0 时 (γ-1)/β² → 1/2，牛顿动能精确地掉出来。 -/
+theorem newtonian_limit :
+    Tendsto (fun b : ℝ => (gamma b - 1) / b ^ 2) (𝓝[≠] 0) (𝓝 (1 / 2))
+```
+
+再看**雅可比**。mathlib 的极坐标换元定理长这样：
+
+```lean
+integral_comp_polarCoord_symm (f) :
+    ∫ p in polarCoord.target, p.1 • f (polarCoord.symm p) = ∫ p, f p
+--                            ↑ 这个 p.1 就是 |det J| = r
+```
+
+那个 `p.1` 是**写死在定理陈述里**的。换句话说：**在 mathlib 里，「换元忘掉雅可比」这个错误根本无法表达** —— 写漏了，定理就不适用。这和 `CancelFallacy.lean` 里的 `a ≠ 0` 是同一个道理：**好的形式化系统，会把纪律变成语法。**
+
+最后一道验收是**公理审计**。Lean 允许写 `sorry` 占位，编译照样通过 —— 所以「编译通过」不等于「证明完整」。真正的检查是看公理依赖：
+
+```
+'Emc.approx_error_le'      depends on axioms: [propext, Classical.choice, Quot.sound]
+'GaussInt.jacobian_matters' depends on axioms: [propext, Classical.choice, Quot.sound]
+```
+
+这三条是整个 mathlib 的地基。**没有出现 `sorryAx`**，就意味着这些定理是从零被真正证出来的 —— 这正是 0.98.6「不做测试的推导等于没推」在形式化世界里的对应物。
+
+> 四种严格程度，成本递增：**纸笔靠自觉**（最便宜，也最容易翻车 —— 1999 年火星气候轨道器就毁于磅力秒和牛顿秒混用）→ **Python 运行时对拍**（跑到了才发现）→ **Lean core**（写错了根本编不过，但表达力受限）→ **Lean + mathlib**（能陈述真正的分析学命题：极限、积分、误差阶）。
 
 ---
 

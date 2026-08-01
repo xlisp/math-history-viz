@@ -42,7 +42,7 @@ python ch00_98_deriving_formulas/emc2_einstein_1905.py
 
 ---
 
-## Lean 4 证明（只用 core，**不需要 mathlib**）
+## Lean 4 证明（一）：只用 core，**不需要 mathlib**
 
 ```bash
 lean ch00_98_deriving_formulas/GaussSum.lean     # 无输出 = 全部证明通过
@@ -65,13 +65,33 @@ Lean 要求你交出一个**证明对象** —— 编译通过 = 对所有取值
 > `grind` / `induction` / `decide` / `Int.eq_of_mul_eq_mul_right`，
 > 不引入 mathlib，所以 `lean <file>` 可以直接跑，无需 `lake build`。
 
-### 三种严格程度，成本递增
+### 实数版：`mathlib_proofs/`（需要 mathlib）
+
+core 里没有实数，所以上面那些文件只能表达「去分母之后的等价式」——
+真正的 $\gamma=1/\sqrt{1-\beta^2}$、多普勒因子、高斯积分，必须有 ℝ 和测度论才写得出来。
+**形式化的表达能力，决定了你能不能诚实地陈述那个定理。**
+
+```bash
+cd ch00_98_deriving_formulas/mathlib_proofs && lake build
+```
+
+| 文件 | 内容 |
+|------|------|
+| `MathlibProofs/EmcReal.lean` | 光子盒（带真除法）、多普勒和 $=2\gamma$、二阶夹逼 $\frac{\beta^2}{2}\le\gamma-1\le\frac{2}{3}\beta^2$、误差 $\le\beta^4$、$\beta\to0$ 的牛顿极限 |
+| `MathlibProofs/GaussianIntegral.lean` | $\int e^{-x^2}=\sqrt\pi$、$\int e^{-x^2/2}=\sqrt{2\pi}$、密度归一化、$\sqrt\pi\ne\pi^{3/4}$、极坐标定理里那个 `p.1` 就是雅可比 |
+| `MathlibProofs/Audit.lean` | 公理审计：13 条定理全部只依赖 `[propext, Classical.choice, Quot.sound]`，**没有 sorryAx** |
+
+细节见 [`mathlib_proofs/README.md`](mathlib_proofs/README.md)。
+mathlib 预编译产物约 7 GB，全在 `.lake/` 下并已被 gitignore。
+
+### 四种严格程度，成本递增
 
 | 方式 | 成本 | 什么时候发现错误 |
 |------|------|----------------|
 | 纸笔靠自觉 | 最便宜 | 往往永远不发现（火星气候轨道器） |
 | Python + SymPy 运行时对拍 | 便宜 | 跑到了才发现 |
-| Lean 编译期检查 | 贵一点 | **写错了根本编不过** |
+| Lean core 编译期检查 | 中 | **写错了根本编不过**，但表达力受限（没有实数） |
+| Lean + mathlib | 最贵 | 同上，且能陈述真正的分析学命题（极限、积分、误差阶） |
 
 ---
 

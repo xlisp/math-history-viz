@@ -6,7 +6,8 @@ defaultTargets = ["MathlibProofs"]
 [leanOptions]
 pp.unicode.fun = true # pretty-prints `fun a ↦ b`
 relaxedAutoImplicit = false
-weak.linter.mathlibStandardSet = true
+# 这不是 mathlib 本体，关掉它的版权头/文档字符串风格检查
+weak.linter.mathlibStandardSet = false
 maxSynthPendingDepth = 3
 
 [[require]]
