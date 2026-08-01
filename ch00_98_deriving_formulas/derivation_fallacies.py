@@ -159,7 +159,7 @@ def main():
         ax.text(.46, y, what, va="center", transform=ax.transAxes, fontsize=10,
                 color="#555")
         if not holds and i == 4:
-            ax.annotate("这里除以了 (a-b)，\n而 a=b ⇒ a-b=0",
+            ax.annotate("这里除以了 (a-b)，\n而 a=b 意味着 a-b=0",
                         xy=(.44, y), xytext=(.66, y + .07), xycoords="axes fraction",
                         fontsize=10, color="#c0392b", fontweight="bold",
                         arrowprops=dict(arrowstyle="-|>", color="#c0392b", lw=2))
@@ -226,13 +226,13 @@ def main():
         ("循环论证", "画依赖图，追到实验事实或公理为止"),
     ]
     for i, (k, v) in enumerate(rows):
-        y = .78 - i * .155
+        y = .84 - i * .148
         ax.text(.05, y, k, transform=ax.transAxes, fontsize=11,
                 fontweight="bold", color="#c0392b")
         ax.text(.05, y - .06, v, transform=ax.transAxes, fontsize=9.5, color="#333")
-    ax.text(.5, .04, "同目录 CancelFallacy.lean：Lean 根本不让你\n"
+    ax.text(.5, .02, "同目录 CancelFallacy.lean：Lean 根本不让你\n"
                      "写出第 5 步 —— 除非先交出 a-b ≠ 0 的证明",
-            ha="center", transform=ax.transAxes, fontsize=9.5,
+            ha="center", va="bottom", transform=ax.transAxes, fontsize=9,
             style="italic", color="#555")
 
     fig.suptitle("推导是怎么坏掉的：五个经典陷阱，以及它们各自的崩溃点",

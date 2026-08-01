@@ -521,17 +521,69 @@ $n=1,2$ 先算；一维先算再推三维；无摩擦先算再加摩擦。
 
 | 脚本 | 做什么 |
 |------|-------|
-| `emc2_einstein_1905.py` | 爱因斯坦 1905 原版推导逐步动画：两束光 → 多普勒 → 级数展开 → $\Delta m = E/c^2$，每帧标注 A/B 动作类型 |
-| `emc2_photon_box.py` | 光子盒的质心守恒动画：盒子后退 vs 光子"搬运"质量，两条轨迹实时抵消 |
+| `emc2_einstein_1905.py` | 爱因斯坦 1905 原版推导：两束光 → 多普勒 → 快度换元 → 级数展开 → $\Delta m = E/c^2$，每一步标注 A/B 动作类型 |
+| `emc2_photon_box.py` | 光子盒的质心守恒：盒子后退 vs 光子"搬运"质量，两条轨迹实时抵消；并列出两条路线的前提账单 |
 | `emc2_energy_series.py` | $\gamma mc^2$ 的逐阶展开：静止能 / 牛顿动能 / 相对论修正三条曲线随 $v/c$ 分离 |
 | `identity_transform_tree.py` | 恒等变换树：一个表达式的所有等价形式作为一张图，边 = 一次合法重写（SymPy 校验每条边） |
-| `completing_square_babylon.py` | 配方法的几何原版：巴比伦泥板的"补一个正方形"图解 ↔ 代数配方同步动画 |
-| `substitution_as_chart.py` | 换元 = 换坐标图：直角↔极坐标下 $e^{-x^2-y^2}$ 的网格形变，可视化雅可比因子 $r$ |
+| `completing_square_babylon.py` | 配方法的几何原版：巴比伦泥板的"补一个正方形"图解 ↔ 代数配方 ↔ 花拉子米大白话原文 |
+| `substitution_as_chart.py` | 换元 = 换坐标图：直角↔极坐标下 $e^{-x^2-y^2}$ 的网格形变，可视化雅可比因子 $r$ 及漏掉它的后果 |
 | `rapidity_substitution.py` | $\beta=\tanh\theta$ 快度换元：速度叠加的非线性 vs 快度叠加的线性，并排展示 |
-| `dimensional_analysis_solver.py` | 输入物理量和单位，自动解出指数方程组，给出公式骨架（单摆、阻力、爆炸波） |
-| `approximation_error_ladder.py` | 小角近似的误差阶梯：$\sin\theta$ 保留 1/3/5 阶 vs 数值真解，误差随 $\theta_0$ 增长 |
-| `derivation_fallacies.py` | 五个经典假证明的崩溃点定位：逐步跑，在除零/漏雅可比那一步高亮报警 |
+| `dimensional_analysis_solver.py` | 输入物理量和单位，自动解出指数方程组，给出公式骨架（单摆、自由落体、阻力、核爆火球） |
+| `approximation_error_ladder.py` | 小角近似的误差阶梯：$\sin\theta$ 保留 1/3/5 阶 vs 真实单摆模拟，误差随 $\theta_0$ 从 0.06% 涨到 33% |
+| `derivation_fallacies.py` | 五个经典假证明的崩溃点定位：除零 / 漏雅可比 / 阶数不齐 / 黎曼重排 / 循环论证 |
 | `derivation_crosscheck.py` | 三方对拍框架：SymPy 闭式解 ⟷ torch 数值积分 ⟷ 蒙特卡洛，三条独立路径画在同一张图上 |
+
+### 附：Lean 4 形式化证明（同目录，只用 core，不需要 mathlib）
+
+SymPy 只能说「我算了一遍，没发现问题」。**Lean 要求你交出一个证明对象** —— 编译通过 = 对所有取值都成立。
+更有教育意义的是：**它会逼出被省略的前提。纸笔推导允许你「不写出来」，Lean 不允许。**
+
+| 文件 | 讲什么 |
+|------|-------|
+| `CompletingSquare.lean` | 配方恒等式、求根的 $\Longleftrightarrow$ 等价、花拉子米原题的**两个**根 —— A 类动作的机器验收 |
+| `GaussSum.lean` | 归纳法（#11）：高斯求和 / 奇数和 / 平方和，三条公式的证明**长得一模一样** |
+| `Telescoping.lean` | 裂项相消 = 离散版微积分基本定理；换一个 $f$ 就掉出一条新的求和公式 |
+| `CancelFallacy.lean` | 除以零：**Lean 根本不让你写出那一步**，除非先交出 `a - b ≠ 0` 的证明 |
+| `PhotonBox.lean` | $E=mc^2$ 光子盒推导的形式化。那条 `hL : L ≠ 0`，就是纸上从来不写的前提 |
+| `DimensionTypes.lean` | 量纲即类型：`E = mc²` 编译通过，而 `E = mc`、`m + c` **编译失败** |
+
+其中 `CancelFallacy.lean` 最值得亲手跑一遍 —— 它把 0.98.5 那条规则变成了硬约束：
+
+```lean
+-- Lean core 的消去律，注意第一个参数：
+--   Int.eq_of_mul_eq_mul_right : a ≠ 0 → b * a = c * a → b = c
+theorem cancel_ok (a b : Int) (h : a * (a - b) = b * (a - b)) (hne : a - b ≠ 0) :
+    a = b :=
+  Int.eq_of_mul_eq_mul_right hne h        -- 把 hne 删掉，编译立刻失败
+
+-- 而无条件的消去律本身就是假的，可以直接证明它的否定：
+theorem cancel_needs_hypothesis : ¬ (∀ a b c : Int, a * c = b * c → a = b) := by
+  intro h
+  have bad : (1 : Int) = 2 := h 1 2 0 (by decide)   -- 1*0 = 2*0 成立
+  exact absurd bad (by decide)
+```
+
+`DimensionTypes.lean` 则把「量纲检查」这条防线做到了极致 —— 不是事后验算，而是**事前禁止**：
+
+```lean
+structure Dim where            -- 量纲 = (长度, 时间, 质量) 的指数向量
+  L : Int
+  T : Int
+  M : Int
+deriving DecidableEq
+
+instance : Mul Dim := ⟨fun a b => ⟨a.L+b.L, a.T+b.T, a.M+b.M⟩⟩   -- 量纲相乘 = 指数相加
+structure Q (d : Dim) where val : Float                          -- 带量纲的物理量
+
+def Q.add {d : Dim} (x y : Q d) : Q d := ⟨x.val + y.val⟩   -- 加法：只允许同量纲
+
+theorem mc2_has_energy_dimension : kg * (velocity * velocity) = energy := by decide
+
+#check_failure (mass.mul light : Q energy)   -- E = mc  → 类型不匹配，编译失败
+#check_failure (mass.add light)              -- m + c   → 加法拒绝异量纲
+```
+
+> 三种严格程度，成本递增：**纸笔靠自觉**（最便宜，也最容易翻车 —— 1999 年火星气候轨道器就毁于磅力秒和牛顿秒混用）→ **Python 运行时对拍**（跑到了才发现）→ **Lean 编译期检查**（写错了根本编不过）。
 
 ---
 
