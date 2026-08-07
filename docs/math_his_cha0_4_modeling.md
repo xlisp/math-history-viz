@@ -408,23 +408,27 @@ assert torch.allclose(boltzmann, softmax)                 # ← 同一个东西�
 
 ---
 
-## 🎨 0.4.9 配套脚本（待实现于 `ch00_4_modeling/`）
+## 🎨 0.4.9 配套脚本：`ch00_4_modeling/`
 
-按本项目的规矩：**每个脚本必须产出一张图，且必须从真实现象出发**。
+按本项目的规矩：**每个脚本必须产出一张图，且必须从真实现象出发**。十一个脚本全部可直接运行，每个都在同目录下写出一张同名 `.png`：
 
-| 脚本 | 现象 → 数学 | 产出的可视化 |
+```bash
+python ch00_4_modeling/ptolemy_epicycle_fourier.py    # 依此类推
+```
+
+| 脚本 | 现象 → 数学 | 跑出来的硬结论 |
 |------|-----------|-------------|
-| `ptolemy_epicycle_fourier.py` | 火星逆行 → 本轮叠加 → 傅里叶级数 | 动画：$N$ 层本轮逐步逼近任意闭合曲线，$N$ 越大越像 |
-| `kepler_vs_newton.py` | 第谷的火星数据 → 拟合 vs 积分 | 并排：拟合椭圆的残差 vs 从 $F=-GMm/r^2$ 积出的轨道 |
-| `kepler_8_arcmin.py` | 那 8 角分 | 残差图：圆轨道的残差有系统性结构 = 模型没抓完 |
-| `overfit_elephant.py` | 冯·诺依曼的大象 | 4 个复参数画出一头大象，5 个让鼻子摆动 —— 过拟合的视觉证明 |
-| `softmax_is_boltzmann.py` | 磁铁自旋 → 采样温度 | 温度 $T$ 从 0 扫到 $\infty$，玻尔兹曼分布与 softmax 曲线完全重合 |
-| `gradient_descent_is_physics.py` | 小球滚山谷 | 同一个势能面上：过阻尼(SGD) vs 带惯性(Momentum) 的轨迹对比 |
-| `hopfield_ising.py` | 磁铁退磁 → 联想记忆 | 能量地形 + 从残缺图案收敛回原图的过程 |
-| `pinn_heat_rod.py` | 傅里叶的热棒 | 纯数据拟合 vs 加了热方程残差项：外推区域的差距 |
-| `lorenz_predictability.py` | 天气 | 两条初值差 $10^{-6}$ 的轨迹分道扬镳，画出可预测时间窗 |
-| `modeling_loop_falling_body.py` | 自由落体 | 抽象→求解→回代→检验 四步闭环的一张总图（本文 0.4.1 的代码） |
-| `dimensional_analysis_check.py` | 单摆周期 | 只靠量纲分析推出 $T\propto\sqrt{L/g}$，不解任何方程 |
+| `modeling_loop_falling_body.py` | 自由落体 → 四步闭环 | 拟合出 $g = 9.768 \pm 0.035$（真值 9.81，落在 $1.2\sigma$ 内）；加上空气阻力后同一模型给出 $g=6.87$ 且**残差变得有结构** |
+| `ptolemy_epicycle_fourier.py` | 火星逆行 → 本轮叠加 → 傅里叶级数 | 两层本轮精确复现逆行（实测逆行时间占比 9.3%，真实值约 9%）；本轮层数 $m$ 从 1 加到 257，逼近误差从 0.18 掉到 $1.2\times10^{-5}$ —— 单调下降，永不为零 |
+| `kepler_vs_newton.py` | 第谷的火星数据 → 拟合 vs 积分 | 拟合派：$e=0.0934$（真值 0.0934），残差已是白噪声。机理派：用火星标定的同一个 $GM$ 预测其余五颗行星周期，**最大误差 0.07%**；$T^2 \propto a^3$ 从积分里自己掉出来 |
+| `kepler_8_arcmin.py` | 那 8 角分 | 简单偏心圆残差 28′；托勒密的**等分点**把它压到 11.5′、二次谐波 **7.5′**（历史记载 8′）；换成椭圆后残差掉进 ±2′ 的第谷噪声带，频谱变平 |
+| `overfit_elephant.py` | 冯·诺依曼的大象 | 8 个实数画出一头大象；9 次多项式把训练 MSE 压到 $1.5\times10^{-23}$，同一模型留出 MSE 是 $1.7\times10^{8}$ |
+| `softmax_is_boltzmann.py` | 磁铁自旋 → 采样温度 | `assert torch.allclose(玻尔兹曼分布, torch.softmax(-E/T))` **通过**；$T$ 从 0.1 扫到 16，熵从 0.0005 长到 1.0966（上限 $\ln 3 = 1.0986$） |
+| `gradient_descent_is_physics.py` | 小球滚山谷 | 手写的 $m\ddot x = -\nabla E - \gamma\dot x$ 积分与 `torch.optim.SGD(momentum=β)` 逐点相同（最大偏差 $2\times10^{-14}$，float64 底噪）；临界阻尼 $\beta=0.613$ 比纯 GD 快 4.9 倍 |
+| `hopfield_ising.py` | 磁铁退磁 → 联想记忆 | 30% 像素被翻转的图案 100% 恢复，能量全程单调下降；容量实测在第 22 张跌破 50%，物理的预言是 $0.138N \approx 20$ |
+| `pinn_heat_rod.py` | 傅里叶的热棒 | 数据窗口内两者不分胜负；外推区纯统计学习误差 0.0433，PINN 0.0014 —— **好 30 倍**。唯一的差别是 loss 里多了一行 `u_t - α*u_xx` |
+| `lorenz_predictability.py` | 天气 | 实测最大李雅普诺夫指数 $\lambda = 0.900$（文献 0.906）；初始误差从 $10^{-9}$ 降到 $10^{-12}$，可预测时长只从 23.0 涨到 30.7 |
+| `dimensional_analysis_check.py` | 单摆周期 | 不解方程先断言"与质量无关"；四个星球五种摆长的周期全部坍缩到 $T/\sqrt{L/g} = 6.2835 \approx 2\pi$；剩下那个 $\Phi(\theta_0)$ 才需要数值积分 |
 
 ### 与其他章节的关系
 
